@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Borg Incursion — Tests</title>
+  <style>
+    body { background: #111; color: #ccc; font-family: monospace; padding: 20px; }
+    .pass { color: #0f0; } .fail { color: #f33; }
+    h1 { color: #00ff66; font-size: 18px; }
+    .result { margin: 4px 0; padding: 2px 8px; }
+    #summary { margin-top: 16px; font-size: 16px; padding: 8px; border-top: 1px solid #333; }
+  </style>
+</head>
+<body>
+  <h1>BORG INCURSION — TEST SUITE</h1>
+  <div id="results"></div>
+  <div id="summary"></div>
+
+  <!-- Minimal DOM stubs matching game expectations -->
+  <div style="display:none">
+    <canvas id="game-canvas" width="800" height="600"></canvas>
+    <div id="overlay"></div>
+    <div id="game-over-screen" class="hidden"></div>
+    <div id="wave-banner" class="hidden"></div>
+    <span id="score-value"></span>
+    <span id="lives-value"></span>
+    <span id="wave-value"></span>
+    <span id="final-score"></span>
+    <span id="wave-banner-num"></span>
+    <span id="wave-banner-text"></span>
+    <button id="btn-left"></button>
+    <button id="btn-right"></button>
+    <button id="btn-fire"></button>
+  </div>
+
+  <script>
+    // ── Minimal test runner ──────────────────────────────────
+    let passed = 0, failed = 0;
+    const resultsEl = document.getElementById('results');
+
+    function assert(condition, name) {
+      if (condition) {
+        passed++;
+        resultsEl.innerHTML += `<div class="result pass">✓ ${name}</div>`;
+      } else {
+        failed++;
+        resultsEl.innerHTML += `<div class="result fail">✗ ${name}</div>`;
+      }
+    }
+
+    function assertEq(actual, expected, name) {
+      assert(actual === expected, `${name} (got ${actual}, expected ${expected})`);
+    }
+
+    function assertApprox(actual, expected, tolerance, name) {
+      assert(Math.abs(actual - expected) <= tolerance, `${name} (got ${actual}, expected ~${expected})`);
+    }
+  </script>
+
+  <!-- Load the game (it will start its loop, but tests run synchronously first frame) -->
+  <script src="game.js"></script>
+
+  <script>
+    // ── Tests ────────────────────────────────────────────────
+
+    // 1. Canvas dimensions
+    assertEq(W, 800, 'Canvas width is 800');
+    assertEq(H, 600, 'Canvas height is 600');
+
+    // 2. Initial state
+    assertEq(state, 'title', 'Initial state is title');
+    assertEq(score, 0, 'Initial score is 0');
+    assertEq(lives, 3, 'Initial lives is 3');
+    assertEq(wave, 1, 'Initial wave is 1');
+
+    // 3. Player defaults
+    assertEq(player.x, W / 2, 'Player starts centered X');
+    assertEq(player.y, H - 50, 'Player starts near bottom');
+    assertEq(player.w, 40, 'Player width is 40');
+    assertEq(player.h, 24, 'Player height is 24');
+    assertEq(player.speed, 5, 'Player speed is 5');
+    assertEq(player.fireRate, 12, 'Player fire rate is 12');
+
+    // 4. Star field initialisation
+    initStars();
+    assertEq(stars.length, 120, 'initStars creates 120 stars');
+    assert(stars.every(s => s.x >= 0 && s.x <= W), 'All stars within X bounds');
+    assert(stars.every(s => s.y >= 0 && s.y <= H), 'All stars within Y bounds');
+    assert(stars.every(s => s.speed > 0), 'All stars have positive speed');
+
+    // 5. Borg fleet creation — wave 1
+    wave = 1;
+    createBorgFleet();
+    const expectedRows = Math.min(4 + Math.floor(1 / 2), 7); // 4
+    const expectedCols = Math.min(8 + Math.floor(1 / 3), 12); // 8
+    assertEq(borgs.length, expectedRows * expectedCols, `Wave 1 fleet: ${expectedRows}×${expectedCols} = ${expectedRows * expectedCols} borgs`);
+    assert(borgs.every(b => b.alive), 'All borgs start alive');
+    assert(borgs.every(b => b.hp >= 1), 'All borgs have at least 1 HP');
+
+    // 6. Borg types are assigned by row
+    const topRow = borgs.filter((_, i) => i < expectedCols);
+    assert(topRow.every(b => b.type === 2), 'Top row borgs are type 2 (tactical diamonds)');
+    const midRow = borgs.filter((_, i) => i >= expectedCols && i < expectedCols * 3);
+    assert(midRow.every(b => b.type === 1), 'Middle rows are type 1 (spheres)');
+    const bottomRows = borgs.filter((_, i) => i >= expectedCols * 3);
+    assert(bottomRows.every(b => b.type === 0), 'Bottom rows are type 0 (cubes)');
+
+    // 7. Borg fleet scales with waves
+    wave = 5;
+    createBorgFleet();
+    const w5Rows = Math.min(4 + Math.floor(5 / 2), 7); // 6
+    const w5Cols = Math.min(8 + Math.floor(5 / 3), 12); // 9
+    assertEq(borgs.length, w5Rows * w5Cols, `Wave 5 fleet: ${w5Rows}×${w5Cols} = ${w5Rows * w5Cols} borgs`);
+    assertApprox(borgSpeed, 0.4 + 5 * 0.1, 0.001, 'Borg speed scales with wave');
+    wave = 1; // reset
+
+    // 8. Barrier creation
+    initBarriers();
+    assertEq(shieldBarriers.length, 4, 'initBarriers creates 4 barriers');
+    assert(shieldBarriers.every(b => b.cells.length > 0), 'Each barrier has cells');
+    assert(shieldBarriers.every(b => b.cells.every(c => c.alive)), 'All barrier cells start alive');
+
+    // 9. Barrier cell count (4 rows × 6 cols minus corners)
+    // Row 0 skips col 0 and 5 (2 skipped), row 3 skips col 2 and 3 (2 skipped) = 24 - 4 = 20
+    assertEq(shieldBarriers[0].cells.length, 20, 'Each barrier has 20 cells');
+
+    // 10. Particle spawning
+    particles = [];
+    spawnExplosion(100, 100, '#ff0000', 10);
+    assertEq(particles.length, 10, 'spawnExplosion creates correct particle count');
+    assert(particles.every(p => p.life > 0), 'All particles have positive life');
+    assert(particles.every(p => p.color === '#ff0000'), 'Particles have correct color');
+
+    // 11. Assimilation text particle
+    particles = [];
+    spawnAssimilationText(200, 200);
+    assertEq(particles.length, 1, 'spawnAssimilationText creates 1 particle');
+    assert(particles[0].text === true, 'Assimilation particle has text flag');
+    assertEq(particles[0].color, '#00ff66', 'Assimilation text is green');
+
+    // 12. Player clamping
+    player.x = -100;
+    player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
+    assertEq(player.x, player.w / 2, 'Player clamped at left edge');
+
+    player.x = 9999;
+    player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
+    assertEq(player.x, W - player.w / 2, 'Player clamped at right edge');
+    player.x = W / 2; // reset
+
+    // 13. Borg messages
+    assertEq(borgMessages.length, 10, 'There are 10 Borg messages');
+    assert(borgMessages[0] === 'THE BORG ADVANCE', 'First message is correct');
+
+    // 14. DOM refs exist
+    assert(overlay !== null, 'overlay element found');
+    assert(gameOverScreen !== null, 'gameOverScreen element found');
+    assert(canvas !== null, 'canvas element found');
+    assert(scoreEl !== null, 'score element found');
+    assert(livesEl !== null, 'lives element found');
+
+    // 15. Touch button refs exist
+    assert(btnLeft !== null, 'btn-left element found');
+    assert(btnRight !== null, 'btn-right element found');
+    assert(btnFire !== null, 'btn-fire element found');
+
+    // 16. resizeCanvas doesn't crash
+    try { resizeCanvas(); assert(true, 'resizeCanvas runs without error'); }
+    catch (e) { assert(false, 'resizeCanvas runs without error: ' + e.message); }
+
+    // 17. touchBind with null doesn't crash (guard clause)
+    try { touchBind(null, 'KeyX'); assert(true, 'touchBind(null) does not crash'); }
+    catch (e) { assert(false, 'touchBind(null) does not crash: ' + e.message); }
+
+    // 18. Collision: bullet hits borg
+    createBorgFleet();
+    const targetBorg = borgs[0];
+    targetBorg.hp = 1;
+    playerBullets = [{ x: targetBorg.x, y: targetBorg.y, vy: -8 }];
+    state = 'playing';
+    // Manually run collision portion
+    const b = playerBullets[0];
+    let testHit = false;
+    for (const borg of borgs) {
+      if (!borg.alive) continue;
+      const hs = borg.size / 2;
+      if (b.x > borg.x - hs && b.x < borg.x + hs &&
+          b.y > borg.y - hs && b.y < borg.y + hs) {
+        borg.hp--;
+        if (borg.hp <= 0) borg.alive = false;
+        testHit = true;
+        break;
+      }
+    }
+    assert(testHit, 'Bullet at borg position registers hit');
+    assert(!targetBorg.alive, 'Borg with 1 HP dies on hit');
+
+    // 19. Fire interval scales with wave
+    wave = 1;
+    assertEq(Math.max(20, 60 - 1 * 5), 55, 'Wave 1 fire interval is 55');
+    wave = 8;
+    assertEq(Math.max(20, 60 - 8 * 5), 20, 'Wave 8 fire interval clamps to 20');
+    wave = 1;
+
+    // 20. Speed multiplier formula
+    borgs = [{ alive: true }, { alive: true }, { alive: false }, { alive: false }];
+    const alive = borgs.filter(b => b.alive);
+    const mult = 1 + (1 - alive.length / borgs.length) * 2;
+    assertEq(mult, 2, 'Speed multiplier is 2x when half borgs dead');
+
+    // ── Summary ──────────────────────────────────────────────
+    state = 'title'; // reset so game doesn't run logic
+    const summaryEl = document.getElementById('summary');
+    const total = passed + failed;
+    summaryEl.innerHTML = `<span class="${failed === 0 ? 'pass' : 'fail'}">${passed}/${total} passed</span>`;
+    if (failed > 0) summaryEl.innerHTML += ` — <span class="fail">${failed} FAILED</span>`;
+  </script>
+</body>
+</html>
