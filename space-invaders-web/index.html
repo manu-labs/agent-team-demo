@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space Invaders: Borg Incursion</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-container">
+    <div id="hud">
+      <div id="score">SCORE: <span id="score-value">0</span></div>
+      <div id="lives">SHIELDS: <span id="lives-value">3</span></div>
+      <div id="wave">WAVE: <span id="wave-value">1</span></div>
+    </div>
+    <canvas id="game-canvas" width="800" height="600"></canvas>
+    <div id="overlay">
+      <div id="title-screen">
+        <h1>BORG INCURSION</h1>
+        <p class="subtitle">RESISTANCE IS FUTILE</p>
+        <p class="flicker">— PRESS ENTER TO ENGAGE —</p>
+        <div class="controls-info">
+          <p>← → MOVE &nbsp; SPACE FIRE</p>
+        </div>
+      </div>
+    </div>
+    <div id="game-over-screen" class="hidden">
+      <h1>YOU HAVE BEEN ASSIMILATED</h1>
+      <p class="subtitle">YOUR BIOLOGICAL AND TECHNOLOGICAL DISTINCTIVENESS HAS BEEN ADDED TO OUR OWN</p>
+      <p>FINAL SCORE: <span id="final-score">0</span></p>
+      <p class="flicker">— PRESS ENTER TO RESIST AGAIN —</p>
+    </div>
+    <div id="wave-banner" class="hidden">
+      <h2>WAVE <span id="wave-banner-num">1</span></h2>
+      <p id="wave-banner-text">THE BORG ADVANCE</p>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
