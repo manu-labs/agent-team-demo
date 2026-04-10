@@ -19,12 +19,63 @@ const keys = {};
 window.addEventListener('keydown', e => { keys[e.code] = true; });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-// Start / restart
+// Start / restart (keyboard)
 window.addEventListener('keydown', e => {
   if (e.code !== 'Enter') return;
   if (state === 'title') startGame();
   else if (state === 'gameover') startGame();
 });
+
+// ── Mobile detection & canvas scaling ────────────────────────
+const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  || (navigator.maxTouchPoints > 0 && window.innerWidth <= 840);
+
+function resizeCanvas() {
+  if (window.innerWidth <= 840) {
+    const ratio = window.innerWidth / W;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = (H * ratio) + 'px';
+  } else {
+    canvas.style.width = '';
+    canvas.style.height = '';
+  }
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ── Touch controls ───────────────────────────────────────────
+const btnLeft = document.getElementById('btn-left');
+const btnRight = document.getElementById('btn-right');
+const btnFire = document.getElementById('btn-fire');
+
+function touchBind(btn, keyCode) {
+  btn.addEventListener('touchstart', e => { e.preventDefault(); keys[keyCode] = true; }, { passive: false });
+  btn.addEventListener('touchend', e => { e.preventDefault(); keys[keyCode] = false; }, { passive: false });
+  btn.addEventListener('touchcancel', e => { keys[keyCode] = false; });
+}
+
+touchBind(btnLeft, 'ArrowLeft');
+touchBind(btnRight, 'ArrowRight');
+touchBind(btnFire, 'Space');
+
+// Tap to start / restart (mobile) — on canvas and overlay areas
+function handleTapStart(e) {
+  if (state === 'title' || state === 'gameover') {
+    e.preventDefault();
+    startGame();
+  }
+}
+
+canvas.addEventListener('touchstart', handleTapStart, { passive: false });
+overlay.addEventListener('touchstart', handleTapStart, { passive: false });
+gameOverScreen.addEventListener('touchstart', handleTapStart, { passive: false });
+
+// Prevent pull-to-refresh and scroll on the game area
+document.body.addEventListener('touchmove', e => {
+  if (e.target.closest('#game-container') || e.target.closest('#touch-controls')) {
+    e.preventDefault();
+  }
+}, { passive: false });
 
 // ── DOM refs ─────────────────────────────────────────────────
 const scoreEl = document.getElementById('score-value');
