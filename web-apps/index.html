@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game Arcade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a1a;
+      min-height: 100vh;
+      font-family: 'Nunito', sans-serif;
+      color: #e0d8c8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+    }
+
+    h1 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 48px;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ff6b35, #ffcc00, #4ecdc4, #00aaff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tagline {
+      color: #6a6a8a;
+      font-size: 15px;
+      letter-spacing: 2px;
+      margin-bottom: 48px;
+      text-transform: uppercase;
+    }
+
+    .games {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 28px;
+      max-width: 800px;
+      width: 100%;
+    }
+
+    .game-card {
+      position: relative;
+      background: #12122a;
+      border: 2px solid #1e1e3a;
+      border-radius: 16px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.2s, border-color 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+
+    .game-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .game-card.borg:hover { border-color: #00ff66; box-shadow: 0 8px 30px rgba(0, 255, 100, 0.15); }
+    .game-card.fbwg:hover { border-color: #ff6b35; box-shadow: 0 8px 30px rgba(255, 107, 53, 0.15); }
+
+    .card-banner {
+      height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .borg .card-banner {
+      background: linear-gradient(135deg, #020808, #0a1a0a);
+    }
+
+    .fbwg .card-banner {
+      background: linear-gradient(135deg, #1a0a05, #0a1520);
+    }
+
+    .card-banner .icon {
+      font-size: 64px;
+      z-index: 1;
+    }
+
+    .card-banner .bg-grid {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      opacity: 0.06;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .borg .card-banner .glow {
+      position: absolute;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(0,255,100,0.12), transparent 70%);
+      border-radius: 50%;
+    }
+
+    .fbwg .card-banner .glow {
+      position: absolute;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(255,107,53,0.1), transparent 60%);
+      border-radius: 50%;
+      left: 30%;
+    }
+
+    .fbwg .card-banner .glow2 {
+      position: absolute;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(42,183,202,0.1), transparent 60%);
+      border-radius: 50%;
+      left: 50%;
+    }
+
+    .card-body {
+      padding: 20px 24px 24px;
+    }
+
+    .card-body h2 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    .borg .card-body h2 { color: #00ff66; }
+    .fbwg .card-body h2 { color: #ff9a56; }
+
+    .card-body .desc {
+      color: #8a8aaa;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .card-body .tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.06);
+      color: #7a7a9a;
+    }
+
+    .borg .tag { color: #55cc88; }
+    .fbwg .tag { color: #cc8855; }
+
+    .play-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #ccc;
+      transition: background 0.2s;
+    }
+
+    .game-card:hover .play-btn {
+      background: rgba(255,255,255,0.2);
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 32px; }
+      .games { grid-template-columns: 1fr; }
+      .card-banner { height: 140px; }
+      body { padding: 24px 16px 40px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>GAME ARCADE</h1>
+  <p class="tagline">Pick a game and play</p>
+
+  <div class="games">
+    <a class="game-card borg" href="space-invaders-web/index.html">
+      <div class="card-banner">
+        <div class="bg-grid"></div>
+        <div class="glow"></div>
+        <span class="icon">👾</span>
+      </div>
+      <div class="card-body">
+        <h2>Borg Incursion</h2>
+        <p class="desc">Classic space invaders with a Star Trek twist. Destroy waves of Borg cubes, spheres, and tactical diamonds before they assimilate you.</p>
+        <div class="tags">
+          <span class="tag">1 Player</span>
+          <span class="tag">Arcade</span>
+          <span class="tag">Keyboard</span>
+        </div>
+      </div>
+      <div class="play-btn">▶</div>
+    </a>
+
+    <a class="game-card fbwg" href="fireboy-watergirl/index.html">
+      <div class="card-banner">
+        <div class="bg-grid"></div>
+        <div class="glow"></div>
+        <div class="glow2"></div>
+        <span class="icon">🔥💧</span>
+      </div>
+      <div class="card-body">
+        <h2>Fireboy &amp; Watergirl</h2>
+        <p class="desc">Team up on one keyboard! Navigate elemental hazards, collect gems, and reach the exit together across 5 temple levels.</p>
+        <div class="tags">
+          <span class="tag">2 Players</span>
+          <span class="tag">Co-op</span>
+          <span class="tag">Platformer</span>
+        </div>
+      </div>
+      <div class="play-btn">▶</div>
+    </a>
+  </div>
+</body>
+</html>
+
