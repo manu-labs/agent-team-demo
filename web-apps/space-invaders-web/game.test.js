@@ -261,4 +261,3 @@ if (failed === 0) {
 }
 
 process.exit(failed > 0 ? 1 : 0);
-
