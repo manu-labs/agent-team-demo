@@ -24,10 +24,10 @@ const waterGemsEl = document.getElementById('water-gems');
 const TILE = 32;
 const COLS = W / TILE;   // 30
 const ROWS = H / TILE;   // 20
-const GRAVITY = 0.55;
+const GRAVITY = 0.48;
 const MAX_FALL = 10;
-const PLAYER_SPEED = 3.5;
-const JUMP_FORCE = -9.5;
+const PLAYER_SPEED = 3.2;
+const JUMP_FORCE = -10.2;
 
 // ── State ────────────────────────────────────────────────────
 let gameState = 'title'; // title | playing | complete | dead | victory
@@ -37,6 +37,8 @@ let waterGems = 0;
 let totalFireGems = 0;
 let totalWaterGems = 0;
 let deathMsg = '';
+let levelStartTime = 0;
+let levelTime = 0;
 
 const keys = {};
 window.addEventListener('keydown', e => {
@@ -63,7 +65,7 @@ function hideAll() {
 // ── Player class ─────────────────────────────────────────────
 class Player {
   constructor(type) {
-    this.type = type; // 'fire' | 'water'
+    this.type = type;
     this.w = 20;
     this.h = 28;
     this.x = 0;
@@ -72,6 +74,7 @@ class Player {
     this.vy = 0;
     this.onGround = false;
     this.atDoor = false;
+    this.facing = 1;
   }
 
   spawn(tx, ty) {
@@ -84,33 +87,28 @@ class Player {
   }
 
   update() {
-    // Input
     if (this.type === 'fire') {
-      if (keys['ArrowLeft']) this.vx = -PLAYER_SPEED;
-      else if (keys['ArrowRight']) this.vx = PLAYER_SPEED;
+      if (keys['ArrowLeft']) { this.vx = -PLAYER_SPEED; this.facing = -1; }
+      else if (keys['ArrowRight']) { this.vx = PLAYER_SPEED; this.facing = 1; }
       else this.vx = 0;
       if (keys['ArrowUp'] && this.onGround) this.vy = JUMP_FORCE;
     } else {
-      if (keys['KeyA']) this.vx = -PLAYER_SPEED;
-      else if (keys['KeyD']) this.vx = PLAYER_SPEED;
+      if (keys['KeyA']) { this.vx = -PLAYER_SPEED; this.facing = -1; }
+      else if (keys['KeyD']) { this.vx = PLAYER_SPEED; this.facing = 1; }
       else this.vx = 0;
       if (keys['KeyW'] && this.onGround) this.vy = JUMP_FORCE;
     }
 
-    // Gravity
     this.vy += GRAVITY;
     if (this.vy > MAX_FALL) this.vy = MAX_FALL;
 
-    // Move X
     this.x += this.vx;
     this.resolveCollisionX();
 
-    // Move Y
     this.y += this.vy;
     this.onGround = false;
     this.resolveCollisionY();
 
-    // Clamp to canvas
     if (this.x < 0) this.x = 0;
     if (this.x + this.w > W) this.x = W - this.w;
   }
@@ -159,10 +157,19 @@ class Player {
     const cx = this.x + this.w / 2;
     const cy = this.y;
 
+    ctx.save();
+
     if (this.type === 'fire') {
       // Body
       ctx.fillStyle = '#ff6b35';
       ctx.fillRect(this.x + 2, this.y + 8, this.w - 4, this.h - 8);
+      // Legs (animated when moving)
+      if (Math.abs(this.vx) > 0.5) {
+        const step = Math.sin(Date.now() * 0.015) * 3;
+        ctx.fillStyle = '#cc5522';
+        ctx.fillRect(this.x + 3, this.y + this.h - 6 + step, 5, 6);
+        ctx.fillRect(this.x + this.w - 8, this.y + this.h - 6 - step, 5, 6);
+      }
       // Head
       ctx.fillStyle = '#ff9a56';
       ctx.beginPath();
@@ -173,10 +180,10 @@ class Player {
       ctx.fillRect(cx - 5, cy + 5, 4, 4);
       ctx.fillRect(cx + 1, cy + 5, 4, 4);
       ctx.fillStyle = '#222';
-      ctx.fillRect(cx - 4, cy + 6, 2, 2);
-      ctx.fillRect(cx + 2, cy + 6, 2, 2);
+      ctx.fillRect(cx - 4 + (this.facing > 0 ? 1 : 0), cy + 6, 2, 2);
+      ctx.fillRect(cx + 2 + (this.facing > 0 ? 1 : 0), cy + 6, 2, 2);
       // Flame hair
-      const flicker = Math.sin(Date.now() * 0.01) * 2;
+      const flicker = Math.sin(Date.now() * 0.012) * 2;
       ctx.fillStyle = '#ffcc00';
       ctx.beginPath();
       ctx.moveTo(cx - 6, cy + 2);
@@ -190,6 +197,13 @@ class Player {
       // Body
       ctx.fillStyle = '#2ab7ca';
       ctx.fillRect(this.x + 2, this.y + 8, this.w - 4, this.h - 8);
+      // Legs
+      if (Math.abs(this.vx) > 0.5) {
+        const step = Math.sin(Date.now() * 0.015) * 3;
+        ctx.fillStyle = '#1a8a9a';
+        ctx.fillRect(this.x + 3, this.y + this.h - 6 + step, 5, 6);
+        ctx.fillRect(this.x + this.w - 8, this.y + this.h - 6 - step, 5, 6);
+      }
       // Head
       ctx.fillStyle = '#4ecdc4';
       ctx.beginPath();
@@ -200,8 +214,8 @@ class Player {
       ctx.fillRect(cx - 5, cy + 5, 4, 4);
       ctx.fillRect(cx + 1, cy + 5, 4, 4);
       ctx.fillStyle = '#222';
-      ctx.fillRect(cx - 4, cy + 6, 2, 2);
-      ctx.fillRect(cx + 2, cy + 6, 2, 2);
+      ctx.fillRect(cx - 4 + (this.facing > 0 ? 1 : 0), cy + 6, 2, 2);
+      ctx.fillRect(cx + 2 + (this.facing > 0 ? 1 : 0), cy + 6, 2, 2);
       // Water droplet hair
       const bob = Math.sin(Date.now() * 0.008) * 1.5;
       ctx.fillStyle = '#80e8ff';
@@ -211,9 +225,10 @@ class Player {
       ctx.quadraticCurveTo(cx - 6, cy - 1, cx, cy - 7 + bob);
       ctx.fill();
     }
+
+    ctx.restore();
   }
 
-  // Get center for hazard checks
   get cx() { return this.x + this.w / 2; }
   get cy() { return this.y + this.h / 2; }
   get bottom() { return this.y + this.h; }
@@ -221,37 +236,36 @@ class Player {
 
 // ── Level data ───────────────────────────────────────────────
 // Tile legend:
-// . = empty, # = stone wall, = = platform (thin),
+// . = empty, # = wall, = = platform,
 // F = fire pool, W = water pool, P = poison pool,
 // f = fireboy spawn, w = watergirl spawn,
 // 1 = fire door, 2 = water door,
-// r = red gem (fire), b = blue gem (water),
-// ^ = spike, S = switch, M = moving platform anchor,
-// L = lava fall (decorative)
+// r = red gem, b = blue gem
 
+// Max jump height ~3.3 tiles, so vertical gaps between platforms ≤ 3 tiles
 const LEVELS = [
   {
     name: 'First Steps',
     map: [
       '##############################',
+      '#..1.......................2..#',
+      '#..##....................##...#',
+      '#..........r......b..........#',
+      '#.......========............#',
+      '#............................#',
+      '#.r.......................b..#',
+      '#====.....========......====.#',
       '#............................#',
       '#............................#',
-      '#............................#',
-      '#.....r..........b...........#',
-      '#...=====....=====...........#',
-      '#............................#',
-      '#............................#',
-      '#..r.................b.......#',
-      '#.====.....====.....====....#',
+      '#.......r..........b........#',
+      '#.....=====....=====........#',
       '#............................#',
       '#............................#',
-      '#.......r.........b..........#',
-      '#....=====....=====..........#',
+      '#==......========......===..#',
       '#............................#',
-      '#...1....................2...#',
-      '#...##.....PPPP.....##...##.#',
-      '#f.###..FFF....WWW..###.w##.#',
-      '#.####..FFF....WWW..####.##.#',
+      '#............................#',
+      '#f..=====..........=====..w.#',
+      '#..###....FFPPPPWW....###...#',
       '##############################',
     ],
   },
@@ -260,48 +274,48 @@ const LEVELS = [
     map: [
       '##############################',
       '#..............#.............#',
-      '#..............#.............#',
       '#.1............#...........2.#',
       '#.##...........#..........##.#',
       '#..............#.............#',
-      '#......r.......#......b......#',
-      '#....=====.....#...=====....#',
+      '#.....r........#.......b....#',
+      '#...====.......#......====..#',
       '#..............#.............#',
       '#..............#.............#',
       '#..r...........#.........b..#',
-      '#.====.........#......====..#',
+      '#.====....===..#..===..====.#',
       '#..............#.............#',
-      '#..........==#.#.#==.........#',
       '#..............#.............#',
-      '#.....r........#.......b....#',
-      '#...=====......#...=====....#',
-      '#f.........PPPP#PPPP......w.#',
+      '#......r....==#.#==...b.....#',
+      '#.....===......#.....===....#',
+      '#..............#.............#',
+      '#..............#.............#',
+      '#f....====.PPPP#PPPP.====.w.#',
       '#..##..FFF..PPP#PPP..WWW.##.#',
       '##############################',
     ],
   },
   {
-    name: 'Vertical Challenge',
+    name: 'Zigzag Ascent',
     map: [
       '##############################',
+      '#.1........................2.#',
+      '#.##......................##.#',
+      '#............r...b..........#',
+      '#..........=======..........#',
       '#............................#',
-      '#.1..........r...b........2.#',
-      '#.##......=======.........##.#',
+      '#=====...................=====#',
       '#............................#',
+      '#...........r....b..........#',
+      '#..........=======..........#',
       '#............................#',
-      '#========..............======#',
+      '#====....................====#',
       '#............................#',
-      '#...........r....b...........#',
-      '#..........=======...........#',
+      '#..........r.....b..........#',
+      '#.........========..........#',
       '#............................#',
-      '#............................#',
-      '#======..............========#',
-      '#............................#',
-      '#.........r......b..........#',
-      '#........=========..........#',
-      '#............................#',
-      '#f...........PPPP.........w.#',
-      '#.####..FFFF.PPPP.WWWW.####.#',
+      '#===.......................==#',
+      '#f.....====.PPPPPP.====...w.#',
+      '#.####.FFFF.PPPPPP.WWWW.####',
       '##############################',
     ],
   },
@@ -309,24 +323,24 @@ const LEVELS = [
     name: 'Temple of Traps',
     map: [
       '##############################',
-      '#............................#',
       '#.1........................2.#',
       '#.##......................##.#',
       '#............................#',
-      '#........r........b.........#',
-      '#.=====..====..====..=====..#',
+      '#.......====....====........#',
       '#............................#',
-      '#...FFFF...PPPP...WWWW......#',
-      '#..######..####..######.....#',
+      '#...r..................b.....#',
+      '#..====..FFFF..WWWW..====...#',
+      '#........####..####.........#',
       '#............................#',
+      '#....====..........====.....#',
       '#............................#',
       '#..r.....................b...#',
-      '#.====...============..====.#',
+      '#.====....========....====..#',
       '#............................#',
-      '#.....FFFF..PPPP..WWWW......#',
-      '#....######.####.######.....#',
-      '#f...........................w#',
-      '#.#####..FFF..PPP..WWW.####.#',
+      '#.......FFFF..WWWW..........#',
+      '#......#####..#####.........#',
+      '#f..====..PPPPPPPP..====..w.#',
+      '#..##.....PPPPPPPP......##..#',
       '##############################',
     ],
   },
@@ -334,24 +348,24 @@ const LEVELS = [
     name: 'The Final Trial',
     map: [
       '##############################',
-      '#............................#',
-      '#.1.........r..b..........2.#',
-      '#.##......========.......##.#',
+      '#..1.......r....b........2..#',
+      '#..##.....=======........##.#',
       '#............................#',
       '#............................#',
       '#..FFF..====..====..WWW.....#',
-      '#..FFF................WWW...#',
-      '#..###..r........b...###....#',
-      '#.......====..====.........#',
+      '#..FFF..............WWW.....#',
+      '#..###..r........b..###.....#',
+      '#......====....====.........#',
       '#............................#',
       '#.====...PPPPPPPP....====...#',
       '#........PPPPPPPP...........#',
       '#...r.................b.....#',
-      '#..====..============.====..#',
+      '#..====....======....====...#',
       '#............................#',
       '#....FFFF..PPPPPP..WWWW.....#',
-      '#f..#####..PPPPPP..#####..w.#',
-      '#..######..######..######...#',
+      '#...#####..######..#####....#',
+      '#f...====..........====...w.#',
+      '#..####..FFFFPPPPWWWW..####.#',
       '##############################',
     ],
   },
@@ -373,6 +387,7 @@ function loadLevel(idx) {
   fireGems = 0;
   waterGems = 0;
   particles = [];
+  levelStartTime = Date.now();
 
   levelDisplay.textContent = `LEVEL ${idx + 1}`;
   levelNameEl.textContent = level.name;
@@ -415,34 +430,28 @@ function isSolid(tx, ty) {
 
 // ── Hazard checks ────────────────────────────────────────────
 function checkHazards(player) {
-  const tx = Math.floor(player.cx / TILE);
-  const ty = Math.floor(player.bottom / TILE);
-  // Also check the tile the player's feet are touching
-  const tyFeet = Math.floor((player.bottom - 1) / TILE);
+  // Check a few sample points on the player's body
+  const points = [
+    { x: player.x + 2, y: player.bottom - 2 },
+    { x: player.x + player.w - 2, y: player.bottom - 2 },
+    { x: player.cx, y: player.bottom - 2 },
+    { x: player.cx, y: player.cy },
+  ];
 
-  for (const checkTy of [ty, tyFeet]) {
-    if (checkTy < 0 || checkTy >= ROWS) continue;
-    for (let dx = -1; dx <= 1; dx++) {
-      const checkTx = Math.floor(player.cx / TILE) + dx;
-      if (checkTx < 0 || checkTx >= COLS) continue;
-      const tile = tileMap[checkTy][checkTx];
+  for (const pt of points) {
+    const tx = Math.floor(pt.x / TILE);
+    const ty = Math.floor(pt.y / TILE);
+    if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) continue;
+    const tile = tileMap[ty][tx];
 
-      // Check if player overlaps this tile
-      const tileLeft = checkTx * TILE;
-      const tileTop = checkTy * TILE;
-      const overlap = player.x < tileLeft + TILE && player.x + player.w > tileLeft &&
-                      player.y < tileTop + TILE && player.y + player.h > tileTop;
-      if (!overlap) continue;
-
-      if (tile === 'P') {
-        return player.type === 'fire' ? 'Fireboy fell into poison!' : 'Watergirl fell into poison!';
-      }
-      if (tile === 'F' && player.type === 'water') {
-        return 'Watergirl touched fire!';
-      }
-      if (tile === 'W' && player.type === 'fire') {
-        return 'Fireboy touched water!';
-      }
+    if (tile === 'P') {
+      return player.type === 'fire' ? 'Fireboy fell into poison!' : 'Watergirl fell into poison!';
+    }
+    if (tile === 'F' && player.type === 'water') {
+      return 'Watergirl touched fire!';
+    }
+    if (tile === 'W' && player.type === 'fire') {
+      return 'Fireboy touched water!';
     }
   }
   return null;
@@ -453,13 +462,12 @@ function collectGems(player) {
   for (const gem of gems) {
     if (gem.collected) continue;
     if (gem.type !== player.type) continue;
-    const dx = (player.cx) - (gem.x + 8);
-    const dy = (player.cy) - (gem.y + 8);
+    const dx = player.cx - (gem.x + 8);
+    const dy = player.cy - (gem.y + 8);
     if (Math.abs(dx) < 18 && Math.abs(dy) < 18) {
       gem.collected = true;
       if (gem.type === 'fire') fireGems++;
       else waterGems++;
-      // Sparkle
       for (let i = 0; i < 8; i++) {
         const angle = (Math.PI * 2 / 8) * i;
         particles.push({
@@ -509,30 +517,25 @@ function drawTiles() {
       const y = row * TILE;
 
       if (t === '#') {
-        // Stone wall with texture
         ctx.fillStyle = '#3a3a5c';
         ctx.fillRect(x, y, TILE, TILE);
         ctx.fillStyle = '#2e2e4a';
         ctx.fillRect(x + 1, y + 1, TILE - 2, TILE - 2);
-        // Brick lines
         ctx.strokeStyle = '#4a4a6c';
         ctx.lineWidth = 0.5;
         ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE / 2 - 2);
         ctx.strokeRect(x + TILE / 2, y + TILE / 2, TILE / 2 - 2, TILE / 2 - 2);
         ctx.strokeRect(x + 2, y + TILE / 2, TILE / 2 - 2, TILE / 2 - 2);
       } else if (t === '=') {
-        // Platform
         ctx.fillStyle = '#6a6a8c';
         ctx.fillRect(x, y, TILE, 8);
         ctx.fillStyle = '#8a8aac';
         ctx.fillRect(x, y, TILE, 3);
       } else if (t === 'F') {
-        // Fire pool
         ctx.fillStyle = '#ff4400';
         ctx.fillRect(x, y + TILE * 0.4, TILE, TILE * 0.6);
         ctx.fillStyle = '#ff6622';
         ctx.fillRect(x, y + TILE * 0.5, TILE, TILE * 0.3);
-        // Animated flames
         const t1 = Date.now() * 0.005;
         ctx.fillStyle = '#ffaa00';
         for (let i = 0; i < 3; i++) {
@@ -541,12 +544,10 @@ function drawTiles() {
           ctx.fillRect(fx, y + TILE * 0.4 - fh / 2, 6, fh);
         }
       } else if (t === 'W') {
-        // Water pool
         ctx.fillStyle = '#0066cc';
         ctx.fillRect(x, y + TILE * 0.4, TILE, TILE * 0.6);
         ctx.fillStyle = '#0088ee';
         ctx.fillRect(x, y + TILE * 0.5, TILE, TILE * 0.3);
-        // Waves
         const t1 = Date.now() * 0.004;
         ctx.fillStyle = '#44aaff';
         for (let i = 0; i < 4; i++) {
@@ -555,12 +556,10 @@ function drawTiles() {
           ctx.fillRect(wx, wy, 6, 3);
         }
       } else if (t === 'P') {
-        // Poison pool
         ctx.fillStyle = '#33aa33';
         ctx.fillRect(x, y + TILE * 0.4, TILE, TILE * 0.6);
         ctx.fillStyle = '#44cc44';
         ctx.fillRect(x, y + TILE * 0.5, TILE, TILE * 0.3);
-        // Bubbles
         const t1 = Date.now() * 0.003;
         ctx.fillStyle = '#66ee66';
         const bx = x + 8 + Math.sin(t1 + col) * 6;
@@ -580,21 +579,19 @@ function drawDoor(door, type) {
   const color2 = type === 'fire' ? '#ff9a56' : '#4ecdc4';
   const glow = type === 'fire' ? 'rgba(255,107,53,0.3)' : 'rgba(42,183,202,0.3)';
 
-  // Glow
   ctx.fillStyle = glow;
   ctx.fillRect(x - 2, y - 2, TILE + 4, TILE + 4);
-
-  // Door frame
   ctx.fillStyle = color1;
   ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
   ctx.fillStyle = color2;
   ctx.fillRect(x + 5, y + 5, TILE - 10, TILE - 10);
 
-  // Arrow/icon
+  // Door symbol
   ctx.fillStyle = '#fff';
-  ctx.font = '16px sans-serif';
+  ctx.font = 'bold 14px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(type === 'fire' ? '🔥' : '💧', x + TILE / 2, y + TILE / 2 + 6);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(type === 'fire' ? 'F' : 'W', x + TILE / 2, y + TILE / 2);
 }
 
 function drawGems() {
@@ -608,38 +605,26 @@ function drawGems() {
     ctx.translate(x, y + bob);
 
     if (gem.type === 'fire') {
-      // Red diamond
       ctx.fillStyle = '#ff4444';
       ctx.strokeStyle = '#ffaa44';
       ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(0, -8);
-      ctx.lineTo(7, 0);
-      ctx.lineTo(0, 8);
-      ctx.lineTo(-7, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // Shine
-      ctx.fillStyle = 'rgba(255,255,200,0.5)';
-      ctx.fillRect(-2, -4, 3, 3);
     } else {
-      // Blue diamond
       ctx.fillStyle = '#4488ff';
       ctx.strokeStyle = '#88ccff';
       ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(0, -8);
-      ctx.lineTo(7, 0);
-      ctx.lineTo(0, 8);
-      ctx.lineTo(-7, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      // Shine
-      ctx.fillStyle = 'rgba(200,240,255,0.5)';
-      ctx.fillRect(-2, -4, 3, 3);
     }
+    ctx.beginPath();
+    ctx.moveTo(0, -8);
+    ctx.lineTo(7, 0);
+    ctx.lineTo(0, 8);
+    ctx.lineTo(-7, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillRect(-2, -4, 3, 3);
 
     ctx.restore();
   }
@@ -655,11 +640,9 @@ function drawParticles() {
 }
 
 function drawBackground() {
-  // Dark temple background
   ctx.fillStyle = '#0f0f23';
   ctx.fillRect(0, 0, W, H);
 
-  // Subtle grid for atmosphere
   ctx.strokeStyle = 'rgba(100,100,150,0.04)';
   ctx.lineWidth = 1;
   for (let x = 0; x < W; x += TILE) {
@@ -676,14 +659,31 @@ function drawBackground() {
   }
 }
 
-// ── Game loop ────────────────────────────────────────────────
+function drawCheckmark(door) {
+  const x = door.x * TILE + TILE / 2;
+  const y = door.y * TILE - 8;
+  ctx.fillStyle = '#00ff66';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('✓', x, y);
+}
+
+function drawTimer() {
+  if (gameState !== 'playing') return;
+  const elapsed = ((Date.now() - levelStartTime) / 1000).toFixed(1);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '12px "Nunito", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${elapsed}s`, W / 2, 18);
+}
+
+// ── Game logic ───────────────────────────────────────────────
 function update() {
   if (gameState !== 'playing') return;
 
   fireboy.update();
   watergirl.update();
 
-  // Hazards
   const fireDeath = checkHazards(fireboy);
   const waterDeath = checkHazards(watergirl);
   if (fireDeath || waterDeath) {
@@ -692,11 +692,9 @@ function update() {
     return;
   }
 
-  // Gems
   collectGems(fireboy);
   collectGems(watergirl);
 
-  // Doors
   fireboy.atDoor = checkDoor(fireboy, fireDoor);
   watergirl.atDoor = checkDoor(watergirl, waterDoor);
 
@@ -709,7 +707,6 @@ function update() {
 
 function draw() {
   drawBackground();
-
   if (gameState === 'title') return;
 
   drawTiles();
@@ -723,21 +720,12 @@ function draw() {
   }
 
   drawParticles();
+  drawTimer();
 
-  // Door indicators
   if (gameState === 'playing') {
     if (fireboy.atDoor) drawCheckmark(fireDoor);
     if (watergirl.atDoor) drawCheckmark(waterDoor);
   }
-}
-
-function drawCheckmark(door) {
-  const x = door.x * TILE + TILE / 2;
-  const y = door.y * TILE - 8;
-  ctx.fillStyle = '#00ff66';
-  ctx.font = 'bold 14px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('✓', x, y);
 }
 
 function die() {
@@ -748,9 +736,10 @@ function die() {
 
 function completeLevel() {
   gameState = 'complete';
+  levelTime = ((Date.now() - levelStartTime) / 1000).toFixed(1);
   totalFireGems += fireGems;
   totalWaterGems += waterGems;
-  completeStats.textContent = `🔥 ${fireGems} gems  |  💧 ${waterGems} gems`;
+  completeStats.textContent = `🔥 ${fireGems} gems  |  💧 ${waterGems} gems  |  ⏱ ${levelTime}s`;
   levelComplete.classList.remove('hidden');
 }
 
@@ -774,4 +763,3 @@ function loop() {
 }
 
 loop();
-
