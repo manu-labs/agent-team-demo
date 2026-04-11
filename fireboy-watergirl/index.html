@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fireboy &amp; Watergirl: Elemental Temple</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrapper">
+    <div id="hud">
+      <div id="hud-left">
+        <span class="fire-text">🔥 FIREBOY</span>
+        <span id="fire-gems">Gems: <b>0</b></span>
+      </div>
+      <div id="hud-center">
+        <span id="level-display">LEVEL 1</span>
+        <span id="level-name"></span>
+      </div>
+      <div id="hud-right">
+        <span class="water-text">💧 WATERGIRL</span>
+        <span id="water-gems">Gems: <b>0</b></span>
+      </div>
+    </div>
+    <canvas id="game" width="960" height="640"></canvas>
+
+    <!-- Title Screen -->
+    <div id="title-screen" class="screen-overlay">
+      <h1>FIREBOY <span class="amp">&amp;</span> WATERGIRL</h1>
+      <p class="subtitle">THE ELEMENTAL TEMPLE</p>
+      <div class="controls-box">
+        <div class="control-col fire-col">
+          <h3>🔥 Fireboy</h3>
+          <p>↑ Jump</p>
+          <p>← → Move</p>
+        </div>
+        <div class="control-col water-col">
+          <h3>💧 Watergirl</h3>
+          <p>W Jump</p>
+          <p>A D Move</p>
+        </div>
+      </div>
+      <p class="start-prompt pulse">Press ENTER or SPACE to start</p>
+    </div>
+
+    <!-- Level Complete -->
+    <div id="level-complete" class="screen-overlay hidden">
+      <h2>LEVEL COMPLETE!</h2>
+      <p id="complete-stats"></p>
+      <p class="start-prompt pulse">Press ENTER for next level</p>
+    </div>
+
+    <!-- Game Over -->
+    <div id="game-over" class="screen-overlay hidden">
+      <h2>OH NO!</h2>
+      <p id="death-reason"></p>
+      <p class="start-prompt pulse">Press ENTER to retry</p>
+    </div>
+
+    <!-- All Levels Complete -->
+    <div id="victory" class="screen-overlay hidden">
+      <h2>🏆 TEMPLE CLEARED! 🏆</h2>
+      <p class="subtitle">You conquered all levels!</p>
+      <p id="victory-stats"></p>
+      <p class="start-prompt pulse">Press ENTER to play again</p>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
