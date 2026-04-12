@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Fireboy &amp; Watergirl: Elemental Temple</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -28,7 +28,7 @@
     <div id="title-screen" class="screen-overlay">
       <h1>FIREBOY <span class="amp">&amp;</span> WATERGIRL</h1>
       <p class="subtitle">THE ELEMENTAL TEMPLE</p>
-      <div class="controls-box">
+      <div class="controls-box desktop-only">
         <div class="control-col fire-col">
           <h3>🔥 Fireboy</h3>
           <p>↑ Jump</p>
@@ -40,21 +40,31 @@
           <p>A D Move</p>
         </div>
       </div>
-      <p class="start-prompt pulse">Press ENTER or SPACE to start</p>
+      <p class="mobile-hint mobile-only">Touch controls below the game</p>
+      <p class="start-prompt pulse">
+        <span class="desktop-only">Press ENTER or SPACE to start</span>
+        <span class="mobile-only">Tap here to start</span>
+      </p>
     </div>
 
     <!-- Level Complete -->
     <div id="level-complete" class="screen-overlay hidden">
       <h2>LEVEL COMPLETE!</h2>
       <p id="complete-stats"></p>
-      <p class="start-prompt pulse">Press ENTER for next level</p>
+      <p class="start-prompt pulse">
+        <span class="desktop-only">Press ENTER for next level</span>
+        <span class="mobile-only">Tap here for next level</span>
+      </p>
     </div>
 
     <!-- Game Over -->
     <div id="game-over" class="screen-overlay hidden">
       <h2>OH NO!</h2>
       <p id="death-reason"></p>
-      <p class="start-prompt pulse">Press ENTER to retry</p>
+      <p class="start-prompt pulse">
+        <span class="desktop-only">Press ENTER to retry</span>
+        <span class="mobile-only">Tap here to retry</span>
+      </p>
     </div>
 
     <!-- All Levels Complete -->
@@ -62,10 +72,33 @@
       <h2>🏆 TEMPLE CLEARED! 🏆</h2>
       <p class="subtitle">You conquered all levels!</p>
       <p id="victory-stats"></p>
-      <p class="start-prompt pulse">Press ENTER to play again</p>
+      <p class="start-prompt pulse">
+        <span class="desktop-only">Press ENTER to play again</span>
+        <span class="mobile-only">Tap here to play again</span>
+      </p>
     </div>
   </div>
+
+  <!-- Mobile Touch Controls -->
+  <div id="touch-controls">
+    <div class="touch-side fire-side">
+      <div class="touch-label fire-text">🔥 FIREBOY</div>
+      <div class="touch-buttons">
+        <button id="fire-left" class="touch-btn fire-btn">◀</button>
+        <button id="fire-jump" class="touch-btn fire-btn jump-btn">▲</button>
+        <button id="fire-right" class="touch-btn fire-btn">▶</button>
+      </div>
+    </div>
+    <div class="touch-side water-side">
+      <div class="touch-label water-text">💧 WATERGIRL</div>
+      <div class="touch-buttons">
+        <button id="water-left" class="touch-btn water-btn">◀</button>
+        <button id="water-jump" class="touch-btn water-btn jump-btn">▲</button>
+        <button id="water-right" class="touch-btn water-btn">▶</button>
+      </div>
+    </div>
+  </div>
+
   <script src="game.js"></script>
 </body>
 </html>
-

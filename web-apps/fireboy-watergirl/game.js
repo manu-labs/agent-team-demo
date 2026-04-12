@@ -755,6 +755,45 @@ function nextLevel() {
   }
 }
 
+// ── Touch Controls (mobile) ──────────────────────────────────
+function touchBind(id, keyCode) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  const onStart = (e) => { e.preventDefault(); keys[keyCode] = true; btn.classList.add('active'); };
+  const onEnd = (e) => { e.preventDefault(); keys[keyCode] = false; btn.classList.remove('active'); };
+  btn.addEventListener('touchstart', onStart, { passive: false });
+  btn.addEventListener('touchend', onEnd, { passive: false });
+  btn.addEventListener('touchcancel', onEnd, { passive: false });
+  btn.addEventListener('mousedown', onStart);
+  btn.addEventListener('mouseup', onEnd);
+  btn.addEventListener('mouseleave', onEnd);
+}
+
+touchBind('fire-left', 'ArrowLeft');
+touchBind('fire-right', 'ArrowRight');
+touchBind('fire-jump', 'ArrowUp');
+touchBind('water-left', 'KeyA');
+touchBind('water-right', 'KeyD');
+touchBind('water-jump', 'KeyW');
+
+// Tap overlay to advance screens
+function handleScreenTap(e) {
+  e.preventDefault();
+  if (gameState === 'title') { gameState = 'playing'; hideAll(); loadLevel(0); }
+  else if (gameState === 'complete') { nextLevel(); }
+  else if (gameState === 'dead') { hideAll(); loadLevel(currentLevel); gameState = 'playing'; }
+  else if (gameState === 'victory') { currentLevel = 0; totalFireGems = 0; totalWaterGems = 0; hideAll(); titleScreen.classList.remove('hidden'); gameState = 'title'; }
+}
+[titleScreen, levelComplete, gameOverScreen, victoryScreen].forEach(el => {
+  if (el) {
+    el.addEventListener('click', handleScreenTap);
+    el.addEventListener('touchend', handleScreenTap);
+  }
+});
+
+// Prevent scroll/zoom on mobile
+document.addEventListener('touchmove', e => { e.preventDefault(); }, { passive: false });
+
 // ── Main loop ────────────────────────────────────────────────
 function loop() {
   update();

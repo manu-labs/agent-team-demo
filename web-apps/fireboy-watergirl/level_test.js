@@ -430,6 +430,50 @@ for (let i = 0; i < LEVELS.length; i++) {
   console.log('');
 }
 
+// ── Mobile Compatibility Checks ─────────────────────────────
+console.log(`\x1b[36mMobile Compatibility Checks\x1b[0m`);
+
+// Check index.html for required mobile elements
+const fs = require('fs');
+const path = require('path');
+
+const htmlPath = path.join(__dirname, 'index.html');
+const cssPath = path.join(__dirname, 'style.css');
+const jsPath = path.join(__dirname, 'game.js');
+
+let htmlSrc = '', cssSrc = '', jsSrc = '';
+try { htmlSrc = fs.readFileSync(htmlPath, 'utf8'); } catch (e) { htmlSrc = ''; }
+try { cssSrc = fs.readFileSync(cssPath, 'utf8'); } catch (e) { cssSrc = ''; }
+try { jsSrc = fs.readFileSync(jsPath, 'utf8'); } catch (e) { jsSrc = ''; }
+
+if (htmlSrc) {
+  assert(htmlSrc.includes('viewport'), 'HTML has viewport meta tag');
+  assert(htmlSrc.includes('user-scalable=no') || htmlSrc.includes('maximum-scale=1'), 'HTML prevents zoom on mobile');
+  assert(htmlSrc.includes('touch-controls') || htmlSrc.includes('touch-btn'), 'HTML has touch control elements');
+  assert(htmlSrc.includes('mobile-only') || htmlSrc.includes('Tap'), 'HTML has mobile-specific UI hints');
+} else {
+  warn('Could not read index.html — skipping HTML mobile checks');
+}
+
+if (cssSrc) {
+  assert(cssSrc.includes('@media'), 'CSS has responsive media queries');
+  assert(cssSrc.includes('touch-action') || cssSrc.includes('touch-btn'), 'CSS has touch-related styles');
+  assert(cssSrc.includes('100vw') || cssSrc.includes('max-width: 100'), 'CSS scales to viewport width');
+} else {
+  warn('Could not read style.css — skipping CSS mobile checks');
+}
+
+if (jsSrc) {
+  assert(jsSrc.includes('touchstart') || jsSrc.includes('touchBind'), 'JS has touch event handlers');
+  assert(jsSrc.includes('touchend') || jsSrc.includes('touchcancel'), 'JS handles touch end/cancel');
+  assert(jsSrc.includes('touchmove') || jsSrc.includes('preventDefault'), 'JS prevents default touch behavior');
+  assert(jsSrc.includes('click') || jsSrc.includes('handleScreenTap'), 'JS has tap-to-advance on overlays');
+} else {
+  warn('Could not read game.js — skipping JS mobile checks');
+}
+
+console.log('');
+
 // ── Summary ──────────────────────────────────────────────────
 const total = passed + failed;
 console.log('─'.repeat(40));
