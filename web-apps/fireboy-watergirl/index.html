@@ -79,22 +79,28 @@
     </div>
   </div>
 
-  <!-- Mobile Touch Controls -->
+  <!-- Mobile Touch Controls — D-pad layout for thumbs -->
   <div id="touch-controls">
     <div class="touch-side fire-side">
       <div class="touch-label fire-text">🔥 FIREBOY</div>
-      <div class="touch-buttons">
-        <button id="fire-left" class="touch-btn fire-btn">◀</button>
-        <button id="fire-jump" class="touch-btn fire-btn jump-btn">▲</button>
-        <button id="fire-right" class="touch-btn fire-btn">▶</button>
+      <div class="dpad">
+        <button id="fire-jump" class="touch-btn fire-btn dpad-up">▲</button>
+        <div class="dpad-row">
+          <button id="fire-left" class="touch-btn fire-btn dpad-left">◀</button>
+          <div class="dpad-center"></div>
+          <button id="fire-right" class="touch-btn fire-btn dpad-right">▶</button>
+        </div>
       </div>
     </div>
     <div class="touch-side water-side">
       <div class="touch-label water-text">💧 WATERGIRL</div>
-      <div class="touch-buttons">
-        <button id="water-left" class="touch-btn water-btn">◀</button>
-        <button id="water-jump" class="touch-btn water-btn jump-btn">▲</button>
-        <button id="water-right" class="touch-btn water-btn">▶</button>
+      <div class="dpad">
+        <button id="water-jump" class="touch-btn water-btn dpad-up">▲</button>
+        <div class="dpad-row">
+          <button id="water-left" class="touch-btn water-btn dpad-left">◀</button>
+          <div class="dpad-center"></div>
+          <button id="water-right" class="touch-btn water-btn dpad-right">▶</button>
+        </div>
       </div>
     </div>
   </div>
