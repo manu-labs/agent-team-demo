@@ -30,7 +30,7 @@ const PLAYER_SPEED = 3.2;
 const JUMP_FORCE = -10.2;
 
 // ── State ────────────────────────────────────────────────────
-let gameState = 'title'; // title | playing | complete | dead | victory
+let gameState = 'title'; // title | playing | complete | dead | dying | victory
 let currentLevel = 0;
 let fireGems = 0;
 let waterGems = 0;
@@ -39,6 +39,9 @@ let totalWaterGems = 0;
 let deathMsg = '';
 let levelStartTime = 0;
 let levelTime = 0;
+let screenShake = 0;
+let deathTimer = 0;
+let deathType = ''; // 'fire', 'water', 'poison'
 
 const keys = {};
 window.addEventListener('keydown', e => {
@@ -75,6 +78,7 @@ class Player {
     this.onGround = false;
     this.atDoor = false;
     this.facing = 1;
+    this.alive = true;
   }
 
   spawn(tx, ty) {
@@ -84,9 +88,11 @@ class Player {
     this.vy = 0;
     this.onGround = false;
     this.atDoor = false;
+    this.alive = true;
   }
 
   update() {
+    if (!this.alive) return;
     if (this.type === 'fire') {
       if (keys['ArrowLeft']) { this.vx = -PLAYER_SPEED; this.facing = -1; }
       else if (keys['ArrowRight']) { this.vx = PLAYER_SPEED; this.facing = 1; }
@@ -154,6 +160,7 @@ class Player {
   }
 
   draw() {
+    if (!this.alive) return;
     const cx = this.x + this.w / 2;
     const cy = this.y;
 
@@ -242,7 +249,7 @@ class Player {
 // 1 = fire door, 2 = water door,
 // r = red gem, b = blue gem
 
-// Max jump height ~3.3 tiles, so vertical gaps between platforms ≤ 3 tiles
+// Max jump height ~3.3 tiles, so vertical gaps between platforms <= 3 tiles
 const LEVELS = [
   {
     name: "First Steps",
@@ -378,6 +385,7 @@ let fireDoor = { x: 0, y: 0 };
 let waterDoor = { x: 0, y: 0 };
 let fireboy, watergirl;
 let particles = [];
+let ambientParticles = []; // background atmosphere
 
 function loadLevel(idx) {
   currentLevel = idx;
@@ -387,6 +395,9 @@ function loadLevel(idx) {
   fireGems = 0;
   waterGems = 0;
   particles = [];
+  ambientParticles = [];
+  screenShake = 0;
+  deathTimer = 0;
   levelStartTime = Date.now();
 
   levelDisplay.textContent = `LEVEL ${idx + 1}`;
@@ -428,9 +439,111 @@ function isSolid(tx, ty) {
   return t === '#' || t === '=';
 }
 
+// ── Death effects ───────────────────────────────────────────
+function spawnDeathEffect(player, type) {
+  const px = player.cx;
+  const py = player.cy;
+  deathType = type;
+
+  if (type === 'fire') {
+    // Fire burst — flames shooting up and out
+    for (let i = 0; i < 30; i++) {
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI;
+      const speed = 2 + Math.random() * 5;
+      particles.push({
+        x: px + (Math.random() - 0.5) * 10,
+        y: py + (Math.random() - 0.5) * 10,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2,
+        life: 30 + Math.random() * 20,
+        maxLife: 50,
+        color: ['#ff4400', '#ff6600', '#ffaa00', '#ffcc00', '#ffee66'][Math.floor(Math.random() * 5)],
+        size: 3 + Math.random() * 5,
+        type: 'fire',
+      });
+    }
+    // Ember trail
+    for (let i = 0; i < 15; i++) {
+      particles.push({
+        x: px + (Math.random() - 0.5) * 20,
+        y: py,
+        vx: (Math.random() - 0.5) * 3,
+        vy: -1 - Math.random() * 3,
+        life: 40 + Math.random() * 30,
+        maxLife: 70,
+        color: '#ff8800',
+        size: 1 + Math.random() * 2,
+        type: 'ember',
+      });
+    }
+  } else if (type === 'water') {
+    // Water splash — droplets arcing out
+    for (let i = 0; i < 25; i++) {
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.2;
+      const speed = 2 + Math.random() * 4;
+      particles.push({
+        x: px + (Math.random() - 0.5) * 10,
+        y: py + 5,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 30 + Math.random() * 20,
+        maxLife: 50,
+        color: ['#0088ff', '#00aaff', '#44ccff', '#88ddff', '#aaeeff'][Math.floor(Math.random() * 5)],
+        size: 3 + Math.random() * 4,
+        type: 'water',
+        gravity: 0.15,
+      });
+    }
+    // Ripple rings
+    for (let i = 0; i < 3; i++) {
+      particles.push({
+        x: px, y: py + 10,
+        vx: 0, vy: 0,
+        life: 25 + i * 8,
+        maxLife: 25 + i * 8,
+        color: '#44ccff',
+        size: 5 + i * 8,
+        type: 'ripple',
+      });
+    }
+  } else if (type === 'poison') {
+    // Toxic cloud — green puffs expanding
+    for (let i = 0; i < 20; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.5 + Math.random() * 2;
+      particles.push({
+        x: px + (Math.random() - 0.5) * 10,
+        y: py + (Math.random() - 0.5) * 10,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 0.5,
+        life: 40 + Math.random() * 30,
+        maxLife: 70,
+        color: ['#33aa33', '#44cc44', '#66ee66', '#88ff88'][Math.floor(Math.random() * 4)],
+        size: 5 + Math.random() * 8,
+        type: 'cloud',
+      });
+    }
+    // Skull indicator (small crosses)
+    for (let i = 0; i < 6; i++) {
+      particles.push({
+        x: px + (Math.random() - 0.5) * 30,
+        y: py - 10 - Math.random() * 20,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: -0.3 - Math.random() * 0.5,
+        life: 50,
+        maxLife: 50,
+        color: '#aaffaa',
+        size: 2,
+        type: 'cross',
+      });
+    }
+  }
+
+  screenShake = 12;
+}
+
 // ── Hazard checks ────────────────────────────────────────────
 function checkHazards(player) {
-  // Check a few sample points on the player's body
   const points = [
     { x: player.x + 2, y: player.bottom - 2 },
     { x: player.x + player.w - 2, y: player.bottom - 2 },
@@ -445,13 +558,13 @@ function checkHazards(player) {
     const tile = tileMap[ty][tx];
 
     if (tile === 'P') {
-      return player.type === 'fire' ? 'Fireboy fell into poison!' : 'Watergirl fell into poison!';
+      return { msg: player.type === 'fire' ? 'Fireboy fell into poison!' : 'Watergirl fell into poison!', type: 'poison' };
     }
     if (tile === 'F' && player.type === 'water') {
-      return 'Watergirl touched fire!';
+      return { msg: 'Watergirl touched fire!', type: 'fire' };
     }
     if (tile === 'W' && player.type === 'fire') {
-      return 'Fireboy touched water!';
+      return { msg: 'Fireboy touched water!', type: 'water' };
     }
   }
   return null;
@@ -468,15 +581,17 @@ function collectGems(player) {
       gem.collected = true;
       if (gem.type === 'fire') fireGems++;
       else waterGems++;
-      for (let i = 0; i < 8; i++) {
-        const angle = (Math.PI * 2 / 8) * i;
+      for (let i = 0; i < 12; i++) {
+        const angle = (Math.PI * 2 / 12) * i;
         particles.push({
           x: gem.x + 8, y: gem.y + 8,
-          vx: Math.cos(angle) * 2.5,
-          vy: Math.sin(angle) * 2.5,
+          vx: Math.cos(angle) * 3,
+          vy: Math.sin(angle) * 3,
           life: 25,
+          maxLife: 25,
           color: gem.type === 'fire' ? '#ffcc00' : '#80e8ff',
           size: 3,
+          type: 'sparkle',
         });
       }
       updateHUD();
@@ -497,19 +612,97 @@ function updateHUD() {
   waterGemsEl.innerHTML = `Gems: <b>${waterGems}</b>`;
 }
 
+// ── Ambient particles ───────────────────────────────────────
+function spawnAmbientParticles() {
+  // Spawn floating dust motes
+  if (Math.random() < 0.03) {
+    ambientParticles.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: -0.1 - Math.random() * 0.2,
+      life: 200 + Math.random() * 200,
+      maxLife: 400,
+      size: 1 + Math.random() * 1.5,
+      color: 'rgba(200,200,220,0.15)',
+    });
+  }
+
+  // Spawn fire embers near fire tiles
+  if (Math.random() < 0.08) {
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        if (tileMap[row] && tileMap[row][col] === 'F' && Math.random() < 0.01) {
+          ambientParticles.push({
+            x: col * TILE + Math.random() * TILE,
+            y: row * TILE + TILE * 0.3,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: -0.5 - Math.random() * 1,
+            life: 40 + Math.random() * 30,
+            maxLife: 70,
+            size: 1 + Math.random() * 2,
+            color: Math.random() > 0.5 ? '#ff6600' : '#ffaa00',
+          });
+        }
+        // Water drips
+        if (tileMap[row] && tileMap[row][col] === 'W' && Math.random() < 0.005) {
+          ambientParticles.push({
+            x: col * TILE + Math.random() * TILE,
+            y: row * TILE + TILE * 0.3,
+            vx: 0,
+            vy: 0.3,
+            life: 20 + Math.random() * 20,
+            maxLife: 40,
+            size: 2,
+            color: '#44ccff',
+          });
+        }
+        // Poison bubbles
+        if (tileMap[row] && tileMap[row][col] === 'P' && Math.random() < 0.008) {
+          ambientParticles.push({
+            x: col * TILE + Math.random() * TILE,
+            y: row * TILE + TILE * 0.35,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: -0.3 - Math.random() * 0.5,
+            life: 30 + Math.random() * 20,
+            maxLife: 50,
+            size: 2 + Math.random() * 3,
+            color: '#66ee66',
+          });
+        }
+      }
+    }
+  }
+}
+
 // ── Particles ────────────────────────────────────────────────
 function updateParticles() {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.x += p.vx;
     p.y += p.vy;
+    if (p.gravity) p.vy += p.gravity;
+    if (p.type === 'cloud') { p.size += 0.2; p.vx *= 0.97; p.vy *= 0.97; }
+    if (p.type === 'ember') { p.vy -= 0.02; p.size *= 0.98; }
     p.life--;
     if (p.life <= 0) particles.splice(i, 1);
   }
+
+  // Ambient
+  for (let i = ambientParticles.length - 1; i >= 0; i--) {
+    const p = ambientParticles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    if (p.life <= 0) ambientParticles.splice(i, 1);
+  }
+
+  if (screenShake > 0) screenShake--;
 }
 
 // ── Drawing ──────────────────────────────────────────────────
 function drawTiles() {
+  const t1 = Date.now();
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
       const t = tileMap[row][col];
@@ -526,47 +719,89 @@ function drawTiles() {
         ctx.strokeRect(x + 2, y + 2, TILE - 4, TILE / 2 - 2);
         ctx.strokeRect(x + TILE / 2, y + TILE / 2, TILE / 2 - 2, TILE / 2 - 2);
         ctx.strokeRect(x + 2, y + TILE / 2, TILE / 2 - 2, TILE / 2 - 2);
+        // Subtle moss/vine on some walls
+        if ((col + row) % 7 === 0) {
+          ctx.fillStyle = 'rgba(60,120,60,0.15)';
+          ctx.fillRect(x + 2, y + TILE - 6, TILE - 4, 4);
+        }
       } else if (t === '=') {
+        // Platform with more detail
         ctx.fillStyle = '#6a6a8c';
-        ctx.fillRect(x, y, TILE, 8);
+        ctx.fillRect(x, y, TILE, 10);
         ctx.fillStyle = '#8a8aac';
         ctx.fillRect(x, y, TILE, 3);
+        ctx.fillStyle = '#555578';
+        ctx.fillRect(x, y + 8, TILE, 2);
+        // Rivets
+        ctx.fillStyle = '#9a9abc';
+        ctx.fillRect(x + 3, y + 4, 2, 2);
+        ctx.fillRect(x + TILE - 5, y + 4, 2, 2);
       } else if (t === 'F') {
+        // Enhanced fire pool
+        ctx.fillStyle = '#cc2200';
+        ctx.fillRect(x, y + TILE * 0.4, TILE, TILE * 0.6);
         ctx.fillStyle = '#ff4400';
-        ctx.fillRect(x, y + TILE * 0.4, TILE, TILE * 0.6);
+        ctx.fillRect(x, y + TILE * 0.5, TILE, TILE * 0.4);
         ctx.fillStyle = '#ff6622';
-        ctx.fillRect(x, y + TILE * 0.5, TILE, TILE * 0.3);
-        const t1 = Date.now() * 0.005;
-        ctx.fillStyle = '#ffaa00';
-        for (let i = 0; i < 3; i++) {
-          const fx = x + 4 + i * 10;
-          const fh = 8 + Math.sin(t1 + i * 2) * 5;
-          ctx.fillRect(fx, y + TILE * 0.4 - fh / 2, 6, fh);
-        }
-      } else if (t === 'W') {
-        ctx.fillStyle = '#0066cc';
-        ctx.fillRect(x, y + TILE * 0.4, TILE, TILE * 0.6);
-        ctx.fillStyle = '#0088ee';
-        ctx.fillRect(x, y + TILE * 0.5, TILE, TILE * 0.3);
-        const t1 = Date.now() * 0.004;
-        ctx.fillStyle = '#44aaff';
+        ctx.fillRect(x + 2, y + TILE * 0.55, TILE - 4, TILE * 0.2);
+        // Animated flames
+        const ft = t1 * 0.005;
         for (let i = 0; i < 4; i++) {
-          const wx = x + i * 8;
-          const wy = y + TILE * 0.38 + Math.sin(t1 + i) * 2;
-          ctx.fillRect(wx, wy, 6, 3);
+          const fx = x + 2 + i * 8;
+          const fh = 10 + Math.sin(ft + i * 1.7 + col * 0.5) * 6;
+          const fw = 5 + Math.sin(ft * 1.3 + i) * 2;
+          ctx.fillStyle = i % 2 === 0 ? '#ffaa00' : '#ffcc44';
+          ctx.beginPath();
+          ctx.moveTo(fx, y + TILE * 0.45);
+          ctx.quadraticCurveTo(fx + fw / 2, y + TILE * 0.45 - fh, fx + fw, y + TILE * 0.45);
+          ctx.fill();
         }
-      } else if (t === 'P') {
-        ctx.fillStyle = '#33aa33';
+        // Glow
+        ctx.fillStyle = 'rgba(255,100,0,0.08)';
+        ctx.fillRect(x - 4, y - 8, TILE + 8, TILE * 0.5);
+      } else if (t === 'W') {
+        // Enhanced water pool
+        ctx.fillStyle = '#003388';
         ctx.fillRect(x, y + TILE * 0.4, TILE, TILE * 0.6);
-        ctx.fillStyle = '#44cc44';
+        ctx.fillStyle = '#0055aa';
+        ctx.fillRect(x, y + TILE * 0.5, TILE, TILE * 0.35);
+        // Animated waves
+        const wt = t1 * 0.003;
+        ctx.fillStyle = '#2288dd';
+        for (let i = 0; i < 5; i++) {
+          const wx = x + i * 7 - 2;
+          const wy = y + TILE * 0.36 + Math.sin(wt + i * 0.8 + col * 0.3) * 3;
+          ctx.beginPath();
+          ctx.arc(wx + 3, wy, 4, 0, Math.PI, true);
+          ctx.fill();
+        }
+        // Surface shimmer
+        ctx.fillStyle = 'rgba(100,200,255,0.15)';
+        const shimX = x + Math.sin(wt + col) * 4 + TILE / 2;
+        ctx.fillRect(shimX - 3, y + TILE * 0.42, 6, 1);
+      } else if (t === 'P') {
+        // Enhanced poison pool
+        ctx.fillStyle = '#1a6622';
+        ctx.fillRect(x, y + TILE * 0.4, TILE, TILE * 0.6);
+        ctx.fillStyle = '#2a8833';
         ctx.fillRect(x, y + TILE * 0.5, TILE, TILE * 0.3);
-        const t1 = Date.now() * 0.003;
+        ctx.fillStyle = '#33aa44';
+        ctx.fillRect(x + 3, y + TILE * 0.55, TILE - 6, TILE * 0.15);
+        // Bubbles
+        const pt = t1 * 0.003;
         ctx.fillStyle = '#66ee66';
-        const bx = x + 8 + Math.sin(t1 + col) * 6;
-        const by = y + TILE * 0.35 + Math.sin(t1 * 1.5 + col) * 4;
+        const bx1 = x + 6 + Math.sin(pt + col * 1.5) * 5;
+        const by1 = y + TILE * 0.33 + Math.sin(pt * 1.3 + col) * 4;
         ctx.beginPath();
-        ctx.arc(bx, by, 3, 0, Math.PI * 2);
+        ctx.arc(bx1, by1, 3 + Math.sin(pt * 2) * 1, 0, Math.PI * 2);
         ctx.fill();
+        if (Math.sin(pt * 0.7 + col * 3) > 0.3) {
+          const bx2 = x + 20 + Math.sin(pt * 0.8 + col) * 4;
+          const by2 = y + TILE * 0.3 + Math.sin(pt * 1.1 + col * 2) * 3;
+          ctx.beginPath();
+          ctx.arc(bx2, by2, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
   }
@@ -577,16 +812,21 @@ function drawDoor(door, type) {
   const y = door.y * TILE;
   const color1 = type === 'fire' ? '#ff6b35' : '#2ab7ca';
   const color2 = type === 'fire' ? '#ff9a56' : '#4ecdc4';
-  const glow = type === 'fire' ? 'rgba(255,107,53,0.3)' : 'rgba(42,183,202,0.3)';
+  const glow = type === 'fire' ? 'rgba(255,107,53,' : 'rgba(42,183,202,';
 
-  ctx.fillStyle = glow;
+  // Pulsing glow
+  const pulse = 0.2 + Math.sin(Date.now() * 0.004) * 0.1;
+  ctx.fillStyle = glow + pulse + ')';
+  ctx.fillRect(x - 4, y - 4, TILE + 8, TILE + 8);
+  ctx.fillStyle = glow + (pulse + 0.1) + ')';
   ctx.fillRect(x - 2, y - 2, TILE + 4, TILE + 4);
+
   ctx.fillStyle = color1;
   ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
   ctx.fillStyle = color2;
   ctx.fillRect(x + 5, y + 5, TILE - 10, TILE - 10);
 
-  // Door symbol
+  // Door symbol with glow
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 14px sans-serif';
   ctx.textAlign = 'center';
@@ -595,14 +835,23 @@ function drawDoor(door, type) {
 }
 
 function drawGems() {
+  const now = Date.now();
   for (const gem of gems) {
     if (gem.collected) continue;
     const x = gem.x + 8;
     const y = gem.y + 8;
-    const bob = Math.sin(Date.now() * 0.005 + gem.x) * 2;
+    const bob = Math.sin(now * 0.005 + gem.x) * 3;
+    const spin = Math.sin(now * 0.003 + gem.x * 0.1) * 0.15;
 
     ctx.save();
     ctx.translate(x, y + bob);
+    ctx.rotate(spin);
+
+    // Glow behind gem
+    ctx.fillStyle = gem.type === 'fire' ? 'rgba(255,68,68,0.15)' : 'rgba(68,136,255,0.15)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+    ctx.fill();
 
     if (gem.type === 'fire') {
       ctx.fillStyle = '#ff4444';
@@ -622,19 +871,67 @@ function drawGems() {
     ctx.fill();
     ctx.stroke();
 
-    // Shine
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillRect(-2, -4, 3, 3);
+    // Sparkle shine
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(-2, -5, 3, 3);
+    // Secondary sparkle
+    const sparkle = Math.sin(now * 0.01 + gem.x) > 0.7;
+    if (sparkle) {
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillRect(3, -2, 2, 2);
+    }
 
     ctx.restore();
   }
 }
 
 function drawParticles() {
-  for (const p of particles) {
-    ctx.globalAlpha = p.life / 25;
+  // Ambient particles (behind everything)
+  for (const p of ambientParticles) {
+    const alpha = Math.min(1, p.life / (p.maxLife * 0.3)) * Math.min(1, (p.maxLife - p.life) / 20);
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Game particles (death effects, gem sparkles)
+  for (const p of particles) {
+    const alpha = p.life / (p.maxLife || 25);
+    ctx.globalAlpha = alpha;
+
+    if (p.type === 'ripple') {
+      // Expanding ring
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 2;
+      const radius = (1 - p.life / p.maxLife) * 30 + 5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (p.type === 'cloud') {
+      // Expanding poison cloud
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (p.type === 'cross') {
+      // Toxic cross/skull
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 1, p.y - 4, 2, 8);
+      ctx.fillRect(p.x - 4, p.y - 1, 8, 2);
+    } else {
+      // Standard particle (fire, water, ember, sparkle)
+      ctx.fillStyle = p.color;
+      if (p.type === 'water') {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      }
+    }
   }
   ctx.globalAlpha = 1;
 }
@@ -643,6 +940,7 @@ function drawBackground() {
   ctx.fillStyle = '#0f0f23';
   ctx.fillRect(0, 0, W, H);
 
+  // Subtle grid
   ctx.strokeStyle = 'rgba(100,100,150,0.04)';
   ctx.lineWidth = 1;
   for (let x = 0; x < W; x += TILE) {
@@ -657,15 +955,25 @@ function drawBackground() {
     ctx.lineTo(W, y);
     ctx.stroke();
   }
+
+  // Gradient overlay at top and bottom for atmosphere
+  const topGrad = ctx.createLinearGradient(0, 0, 0, 80);
+  topGrad.addColorStop(0, 'rgba(20,15,40,0.4)');
+  topGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, W, 80);
 }
 
 function drawCheckmark(door) {
   const x = door.x * TILE + TILE / 2;
   const y = door.y * TILE - 8;
+  const pulse = 0.7 + Math.sin(Date.now() * 0.008) * 0.3;
+  ctx.globalAlpha = pulse;
   ctx.fillStyle = '#00ff66';
-  ctx.font = 'bold 16px sans-serif';
+  ctx.font = 'bold 18px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('✓', x, y);
+  ctx.globalAlpha = 1;
 }
 
 function drawTimer() {
@@ -679,6 +987,18 @@ function drawTimer() {
 
 // ── Game logic ───────────────────────────────────────────────
 function update() {
+  if (gameState === 'dying') {
+    deathTimer--;
+    updateParticles();
+    if (screenShake > 0) screenShake--;
+    if (deathTimer <= 0) {
+      gameState = 'dead';
+      deathReason.textContent = deathMsg;
+      gameOverScreen.classList.remove('hidden');
+    }
+    return;
+  }
+
   if (gameState !== 'playing') return;
 
   fireboy.update();
@@ -687,8 +1007,13 @@ function update() {
   const fireDeath = checkHazards(fireboy);
   const waterDeath = checkHazards(watergirl);
   if (fireDeath || waterDeath) {
-    deathMsg = fireDeath || waterDeath;
-    die();
+    const death = fireDeath || waterDeath;
+    deathMsg = death.msg;
+    const deadPlayer = fireDeath ? fireboy : watergirl;
+    spawnDeathEffect(deadPlayer, death.type);
+    deadPlayer.alive = false;
+    gameState = 'dying';
+    deathTimer = 45; // frames of death animation
     return;
   }
 
@@ -702,19 +1027,29 @@ function update() {
     completeLevel();
   }
 
+  spawnAmbientParticles();
   updateParticles();
 }
 
 function draw() {
+  ctx.save();
+
+  // Screen shake
+  if (screenShake > 0) {
+    const shakeX = (Math.random() - 0.5) * screenShake * 1.5;
+    const shakeY = (Math.random() - 0.5) * screenShake * 1.5;
+    ctx.translate(shakeX, shakeY);
+  }
+
   drawBackground();
-  if (gameState === 'title') return;
+  if (gameState === 'title') { ctx.restore(); return; }
 
   drawTiles();
   drawDoor(fireDoor, 'fire');
   drawDoor(waterDoor, 'water');
   drawGems();
 
-  if (gameState === 'playing' || gameState === 'complete') {
+  if (gameState === 'playing' || gameState === 'complete' || gameState === 'dying') {
     fireboy.draw();
     watergirl.draw();
   }
@@ -726,6 +1061,17 @@ function draw() {
     if (fireboy.atDoor) drawCheckmark(fireDoor);
     if (watergirl.atDoor) drawCheckmark(waterDoor);
   }
+
+  // Death flash overlay
+  if (gameState === 'dying' && deathTimer > 35) {
+    const flashAlpha = (deathTimer - 35) / 10;
+    if (deathType === 'fire') ctx.fillStyle = `rgba(255,80,0,${flashAlpha * 0.3})`;
+    else if (deathType === 'water') ctx.fillStyle = `rgba(0,100,255,${flashAlpha * 0.3})`;
+    else ctx.fillStyle = `rgba(50,200,50,${flashAlpha * 0.3})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.restore();
 }
 
 function die() {
@@ -741,6 +1087,22 @@ function completeLevel() {
   totalWaterGems += waterGems;
   completeStats.textContent = `🔥 ${fireGems} gems  |  💧 ${waterGems} gems  |  ⏱ ${levelTime}s`;
   levelComplete.classList.remove('hidden');
+
+  // Victory particles
+  for (let i = 0; i < 30; i++) {
+    particles.push({
+      x: W / 2 + (Math.random() - 0.5) * 200,
+      y: H / 2,
+      vx: (Math.random() - 0.5) * 6,
+      vy: -2 - Math.random() * 5,
+      life: 40 + Math.random() * 30,
+      maxLife: 70,
+      color: ['#ffcc00', '#ff6b35', '#4ecdc4', '#80e8ff', '#ff4444', '#4488ff'][Math.floor(Math.random() * 6)],
+      size: 3 + Math.random() * 3,
+      type: 'sparkle',
+      gravity: 0.1,
+    });
+  }
 }
 
 function nextLevel() {
