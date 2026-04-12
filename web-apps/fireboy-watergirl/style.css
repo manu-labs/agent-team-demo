@@ -196,9 +196,7 @@ body {
     flex-shrink: 0;
   }
 
-  #game {
-    border-radius: 0;
-  }
+  #game { border-radius: 0; }
 
   #hud {
     border-radius: 0;
@@ -225,12 +223,12 @@ body {
   .mobile-only { display: initial !important; }
   .desktop-only { display: none !important; }
 
-  /* Touch Controls */
+  /* Touch Controls — D-pad layout */
   #touch-controls {
     display: flex;
     width: 100vw;
     flex: 1;
-    background: #12122a;
+    background: #0c0c20;
     border-top: 2px solid #2a2a4a;
   }
 
@@ -240,30 +238,42 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 8px 4px;
-    gap: 6px;
+    padding: 6px 4px;
+    gap: 4px;
   }
 
   .fire-side { border-right: 1px solid #2a2a4a; }
 
   .touch-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 900;
     letter-spacing: 1px;
+    margin-bottom: 2px;
   }
 
-  .touch-buttons {
+  /* D-pad grid */
+  .dpad {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
     align-items: center;
+    gap: 4px;
+  }
+
+  .dpad-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .dpad-center {
+    width: 20px;
+    height: 52px;
   }
 
   .touch-btn {
-    width: 56px;
-    height: 56px;
     border: none;
-    border-radius: 12px;
-    font-size: 22px;
+    border-radius: 14px;
+    font-size: 20px;
     font-weight: bold;
     cursor: pointer;
     display: flex;
@@ -273,37 +283,50 @@ body {
     touch-action: manipulation;
   }
 
+  /* Jump button — wide, sits on top */
+  .dpad-up {
+    width: 100px;
+    height: 52px;
+    border-radius: 16px 16px 8px 8px;
+    font-size: 24px;
+  }
+
+  /* Left/Right — tall, easy for thumbs */
+  .dpad-left, .dpad-right {
+    width: 60px;
+    height: 52px;
+    font-size: 22px;
+  }
+
+  .dpad-left { border-radius: 14px 6px 6px 14px; }
+  .dpad-right { border-radius: 6px 14px 14px 6px; }
+
   .fire-btn {
-    background: rgba(255, 107, 53, 0.2);
+    background: rgba(255, 107, 53, 0.15);
     color: #ff6b35;
-    border: 2px solid rgba(255, 107, 53, 0.4);
+    border: 2px solid rgba(255, 107, 53, 0.35);
   }
   .fire-btn:active, .fire-btn.active {
     background: rgba(255, 107, 53, 0.5);
     border-color: #ff6b35;
+    box-shadow: 0 0 16px rgba(255, 107, 53, 0.4);
   }
 
   .water-btn {
-    background: rgba(78, 205, 196, 0.2);
+    background: rgba(78, 205, 196, 0.15);
     color: #4ecdc4;
-    border: 2px solid rgba(78, 205, 196, 0.4);
+    border: 2px solid rgba(78, 205, 196, 0.35);
   }
   .water-btn:active, .water-btn.active {
     background: rgba(78, 205, 196, 0.5);
     border-color: #4ecdc4;
-  }
-
-  .jump-btn {
-    height: 50px;
+    box-shadow: 0 0 16px rgba(78, 205, 196, 0.4);
   }
 }
 
 /* Extra small screens */
 @media (max-width: 400px) {
-  .touch-btn {
-    width: 48px;
-    height: 48px;
-    font-size: 18px;
-  }
-  .jump-btn { height: 44px; }
+  .dpad-up { width: 84px; height: 44px; font-size: 20px; }
+  .dpad-left, .dpad-right { width: 50px; height: 44px; font-size: 18px; }
+  .dpad-center { width: 16px; height: 44px; }
 }
